@@ -38,6 +38,7 @@ module.exports = (function() {
         this.ptr = op.ptr ? op.ptr : null;
         this.ref = (op.refptr || (this.ptr && Long.ZERO.lt(op.ptr))) ? true : false;
         this.label = -1;
+        this.label_xref = 0;
         this.opcode = op.disasm ? op.disasm : (op.opcode ? op.opcode : 'invalid');
         this.assembly = op.opcode ? op.opcode : 'invalid';
         this.comments = op.comment ? [new TextDecoder().decode(Duktape.dec('base64', op.comment))] : [];

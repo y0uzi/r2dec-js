@@ -64,7 +64,7 @@ module.exports = (function() {
         }
     };
 
-    ControlFlow.end_brace = function() {
+    ControlFlow.endBrace = function() {
         return new ControlFlow(null, false, null);
     };
 
@@ -110,7 +110,7 @@ module.exports = (function() {
                 var scope = new Scope(instr.scope.level + 1);
                 var cond = Branch.generate(instr.cond.a, instr.cond.b, instr.cond.type, Branch.FLOW_INVERTED, Base);
                 scope.header = new ControlFlow('if', true, cond);
-                scope.trailer = ControlFlow.end_brace();
+                scope.trailer = ControlFlow.endBrace();
                 instr.scope = scope
             }
             instr.pseudo = Base.instructions.goto(instr.jump);
@@ -118,28 +118,46 @@ module.exports = (function() {
         return true;
     };
 
-    var _has_label = function(instr) {
-        return typeof instr.pseudo == 'string' && instr.pseudo.toString().indexOf('goto label_') == 0;
+    var _set_inline_if = function(instr, level) {
+        var scope = new Scope(level);
+        var cond = Branch.generate(instr.cond.a, instr.cond.b, instr.cond.type, Branch.FLOW_INVERTED, Base);
+        scope.header = new ControlFlow('if', true, cond);
+        scope.trailer = ControlFlow.endBrace();
+        instr.scope = scope
     }
 
     var _set_label = function(instructions, index, is_external) {
         var instr = instructions[index];
         if (is_external) {
             if (instr.cond) {
-                var scope = new Scope(instr.scope.level + 1);
-                var cond = Branch.generate(instr.cond.a, instr.cond.b, instr.cond.type, Branch.FLOW_INVERTED, Base);
-                scope.header = new ControlFlow('if', true, cond);
-                scope.trailer = ControlFlow.end_brace();
-                instr.scope = scope
+                _set_inline_if(instr, instr.scope.level + 1);
             }
             instr.pseudo = Base.instructions.goto(instr.jump);
             return false;
         }
         var found = Utils.search(instr.jump, instructions, _compare_loc);
-        if (found) {
+        var pos = instructions.indexOf(found);
+        if (found && pos != (index + 1)) {
             var label = (found.label < 0) ? _label_counter++ : found.label;
+            found.label_xref++;
             found.label = label;
             instr.pseudo = Base.instructions.goto('label_' + label);
+            return true;
+        }
+        return false;
+    };
+
+    var _remove_label = function(instructions, index) {
+        var instr = instructions[index];
+        var found = Utils.search(instr.jump, instructions, _compare_loc);
+        var pos = instructions.indexOf(found);
+        if (found && pos != (index + 1)) {
+            found.label_xref--;
+            if (found.label_xref < 1) {
+                found.label_xref = 0;
+                found.label = -1;
+            }
+            instr.pseudo = Base.instructions.nop();
             return true;
         }
         return false;
@@ -160,9 +178,16 @@ module.exports = (function() {
 
     var _detect_if = function(instructions, index, context) {
         var instr = instructions[index];
-        if (instr.jump.lte(instr.loc) || !instr.cond) {
+        if (instr.jump.lte(instr.loc)) {
             return false;
         }
+        if (!instr.cond) {
+            // this is tricky.. to fix this on if { block } else { block }
+            // it requires to rewrite the analysis loops..
+            _set_label(instructions, index, false);
+            return false;
+        }
+
         var orig_scope = instr.scope;
         var scope = new Scope();
         var old_level = instr.scope.level;
@@ -174,7 +199,7 @@ module.exports = (function() {
         var fail = instr.fail;
         var elseinst = null;
         scope.header = new ControlFlow('if', true, cond);
-        scope.trailer = ControlFlow.end_brace();
+        scope.trailer = ControlFlow.endBrace();
         for (var i = index; i < instructions.length; i++) {
             instr = instructions[i];
             if (end.lte(instr.loc)) {
@@ -190,11 +215,12 @@ module.exports = (function() {
                 elseinst = instr;
                 end = instr.jump;
                 bounds = new AddressBounds(instr.loc, instr.jump)
-                scope.trailer = ControlFlow.end_brace();
+                scope.trailer = ControlFlow.endBrace();
                 scope = new Scope();
                 scope.level = old_level + 1;
                 scope.header = new ControlFlow('else', true);
-                scope.trailer = new ControlFlow.end_brace();
+                scope.trailer = ControlFlow.endBrace();
+                _remove_label(instructions, i);
             }
         }
         if (elseinst && elseinst.jump.gt(elseinst.loc)) {
@@ -219,9 +245,13 @@ module.exports = (function() {
         }
         var cond = null;
         var start = instructions.indexOf(instr);
-        var is_while = (instructions[start - 1] && bounds.isInside(instructions[start - 1].jump));
+        var jmp_while = instructions[start - 1];
+        var is_while = (jmp_while && bounds.isInside(jmp_while.jump));
         if (is_while) {
             cond = first.cond ? Branch.generate(first.cond.a, first.cond.b, first.cond.type, Branch.FLOW_INVERTED, Base) : Branch.false(Base)
+            if (!jmp_while.cond) {
+                _remove_label(instructions, start - 1);
+            }
         } else {
             cond = first.cond ? Branch.generate(first.cond.a, first.cond.b, first.cond.type, Branch.FLOW_DEFAULT, Base) : Branch.true(Base);
         }
@@ -256,9 +286,14 @@ module.exports = (function() {
                     }
                     _shift_any_instruction_after_goto(instructions, i, scope.level - 1);
                 }
+            } else if (instr.jump && instr.jump.lt(instr.loc) && !bounds.isInside(instr.jump)) {
+                if (instr.cond) {
+                    _set_inline_if(instr, scope.level + 1)
+                }
+                _set_label(instructions, i, !context.limits.isInside(instr.jump))
             }
         }
-        scope.trailer = is_while ? ControlFlow.end_brace() : new ControlFlow('while', false, cond);
+        scope.trailer = is_while ? ControlFlow.endBrace() : new ControlFlow('while', false, cond);
         return true;
     };
 
@@ -279,7 +314,7 @@ module.exports = (function() {
                 continue;
             }
             if (!_detect_jumps(instructions, i, context)) {
-                _detect_while(instructions, i, context);
+                _detect_while(instructions, i, context)
             }
         }
     };

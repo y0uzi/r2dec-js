@@ -112,6 +112,7 @@ module.exports = (function() {
     };
 
     var _load16 = function(instr, context) {
+        instr.invalidate_jump();
         _returns_r0(instr, context);
         var ptr = instr.parsed[2];
         if (ptr.indexOf('-') >= 0) {
@@ -403,10 +404,12 @@ module.exports = (function() {
                 return op;
             },
             ldi: function(instr, context) {
+                instr.invalidate_jump();
                 _returns_r0(instr, context);
                 return Base.instructions.assign(instr.parsed[1], instr.parsed[2]);
             },
             lds: function(instr, context) {
+                instr.invalidate_jump();
                 _returns_r0(instr, context);
                 //pointer, register, bits, is_signed
                 return Base.instructions.read_memory(instr.parsed[2], instr.parsed[1], 8, false);

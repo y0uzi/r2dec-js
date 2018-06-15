@@ -288,6 +288,7 @@ module.exports = (function() {
                 return Base.instructions.return(reg);
             },
             'jal': function(instr) {
+                instr.invalidate_jump();
                 var fcn_name = instr.parsed[1].replace(/\./g, '_');
                 if (fcn_name.indexOf('0x') == 0) {
                     fcn_name = fcn_name.replace(/0x/, 'fcn_');
@@ -295,6 +296,7 @@ module.exports = (function() {
                 return Base.instructions.call(fcn_name);
             },
             'jalr': function(instr) {
+                instr.invalidate_jump();
                 return Base.instructions.call(instr.parsed[1], [], true);
             },
             'bal': function(instr) {

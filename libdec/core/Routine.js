@@ -155,7 +155,7 @@ module.exports = (function() {
                         instr.scope.printableHeader(line, paddingsize, tmpident);
                     }
                 }
-                if (instr.label > -1) {
+                if (instr.label > -1 && instr.label_xref > 0) {
                     line.appendSpacedPipe(paddingsize);
                     line.appendLabels('label_' + instr.label);
                     line.append(':');

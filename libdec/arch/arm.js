@@ -160,7 +160,9 @@ module.exports = (function() {
 
     var _conditional_inline = function(instr, context, instructions, type) {
         instr.conditional(context.cond.a, context.cond.b, type);
-        instr.jump = instructions[instructions.indexOf(instr) + 1].loc;
+        if (!instr.jump) {
+            instr.jump = instructions[instructions.indexOf(instr) + 1].loc;
+        }
     };
 
     var _fix_arg = function(instr) {
@@ -251,10 +253,18 @@ module.exports = (function() {
                 return _common_math(instr.parsed, Base.instructions.add);
             },
             adr: function(instr) {
-                return Base.instructions.assign(instr.parsed[1], _fix_pointer_ref(instr.parsed[2]));
+                var s = _fix_pointer_ref(instr.parsed[2]);
+                if (instr.string) {
+                    s = new Base.string(instr.string);
+                }
+                return Base.instructions.assign(instr.parsed[1], s);
             },
             adrp: function(instr) {
-                return Base.instructions.assign(instr.parsed[1], _fix_pointer_ref(instr.parsed[2]));
+                var s = _fix_pointer_ref(instr.parsed[2]);
+                if (instr.string) {
+                    s = new Base.string(instr.string);
+                }
+                return Base.instructions.assign(instr.parsed[1], s);
             },
             and: function(instr) {
                 return _common_math(instr.parsed, Base.instructions.and);
@@ -320,11 +330,24 @@ module.exports = (function() {
             'b.lo': function(instr, context) {
                 return _conditional(instr, context, 'LO');
             },
+            bl: _call,
+            blx: _call,
             eor: function(instr) {
                 return _common_math(instr.parsed, Base.instructions.xor);
             },
-            bl: _call,
-            blx: _call,
+            fdiv: function(instr) {
+                return Base.instructions.divide(instr.parsed[1], instr.parsed[2], instr.parsed[3]);
+            },
+            fmov: function(instr) {
+                var dst = instr.parsed[1];
+                if (dst == 'ip' || dst == 'sp' || dst == 'fp') {
+                    return Base.instructions.nop();
+                }
+                return Base.instructions.assign(dst, instr.parsed[2]);
+            },
+            fmul: function(instr) {
+                return Base.instructions.multiply(instr.parsed[1], instr.parsed[2], instr.parsed[3]);
+            },
             cmp: _compare,
             fcmp: _compare,
             cbz: function(instr, context, instructions) {
@@ -513,6 +536,9 @@ module.exports = (function() {
                 var lsb = instr.parsed[3];
                 var width = instr.parsed[4];
                 return Base.instructions.special(dest + ' = ' + '(' + src + ' >> ' + lsb + ') & ((1 << ' + width + ') - 1)');
+            },
+            udiv: function(instr) {
+                return Base.instructions.divide(instr.parsed[1], instr.parsed[2], instr.parsed[3]);
             },
             uxtb: function(instr) {
                 return Base.instructions.extend(instr.parsed[1], instr.parsed[2], 8);
