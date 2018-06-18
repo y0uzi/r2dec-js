@@ -353,6 +353,16 @@ module.exports = (function() {
         };
     };
 
+    var _common_flow = function(name) {
+        this.name = name;
+        this.printable = function(p) {
+            p.appendFlow(this.name);
+        };
+        this.toString = function(options) {
+            return this.name;
+        };
+    };
+
     var _common_return = function(reg) {
         this.reg = reg;
         this.printable = function(p) {
@@ -623,6 +633,12 @@ module.exports = (function() {
                     return _base.instructions.call(address, [], true, null, null);
                 }
                 return new _pseudocode(new _common_goto(address));
+            },
+            break: function() {
+                return new _pseudocode(new _common_flow('break'));
+            },
+            continue: function() {
+                return new _pseudocode(new _common_flow('continue'));
             },
             nop: function(destination, source_a, source_b) {
                 return null;

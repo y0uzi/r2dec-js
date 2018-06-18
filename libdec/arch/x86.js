@@ -47,6 +47,14 @@ module.exports = (function() {
         }
     };
 
+    var _returns_types = {
+        'al': 8,
+        'ah': 8,
+        'ax': 16,
+        'eax': 32,
+        'rax': 64
+    };
+
     var _call_fix_name = function(name) {
         if (typeof name != 'string') {
             return name;
@@ -172,6 +180,7 @@ module.exports = (function() {
     };
 
     var _call_function = function(instr, context, instrs, is_pointer) {
+        _update_returns(instr.parsed[1], false, context);
         instr.invalidate_jump();
         var regs32 = ['ebx', 'ecx', 'edx', 'esi', 'edi', 'ebp'];
         var regs64 = ['rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9'];
@@ -376,42 +385,52 @@ module.exports = (function() {
             },
             call: _call_function,
             cmova: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'GT');
                 return _standard_mov(instr, context);
             },
             cmovae: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'GE');
                 return _standard_mov(instr, context);
             },
             cmovb: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'LT');
                 return _standard_mov(instr, context);
             },
             cmovbe: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'LE');
                 return _standard_mov(instr, context);
             },
             cmove: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'EQ');
                 return _standard_mov(instr, context);
             },
             cmovg: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'GT');
                 return _standard_mov(instr, context);
             },
             cmovge: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'GE');
                 return _standard_mov(instr, context);
             },
             cmovl: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'LT');
                 return _standard_mov(instr, context);
             },
             cmovle: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'LE');
                 return _standard_mov(instr, context);
             },
             cmovne: function(instr, context, instructions) {
+                _update_returns(instr.parsed[1], false, context);
                 _conditional_inline(instr, context, instructions, 'NE');
                 return _standard_mov(instr, context);
             },

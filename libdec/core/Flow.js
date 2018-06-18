@@ -35,6 +35,9 @@ module.exports = (function() {
         this.name = name || '';
         this.is_head = is_head;
         this.condition = condition;
+        this.isElse = function() {
+            return this.name.indexOf('else') >= 0;
+        };
         this.printable = function(spacesize) {
             var p = new Printable();
             if (this.is_head) {
@@ -107,11 +110,7 @@ module.exports = (function() {
         }
         if (!instr.pseudo) {
             if (instr.cond) {
-                var scope = new Scope(instr.scope.level + 1);
-                var cond = Branch.generate(instr.cond.a, instr.cond.b, instr.cond.type, Branch.FLOW_INVERTED, Base);
-                scope.header = new ControlFlow('if', true, cond);
-                scope.trailer = ControlFlow.endBrace();
-                instr.scope = scope
+                _set_inline_if(instr, instr.scope.level + 1);
             }
             instr.pseudo = Base.instructions.goto(instr.jump);
         }
@@ -124,7 +123,7 @@ module.exports = (function() {
         scope.header = new ControlFlow('if', true, cond);
         scope.trailer = ControlFlow.endBrace();
         instr.scope = scope
-    }
+    };
 
     var _set_label = function(instructions, index, is_external) {
         var instr = instructions[index];
@@ -142,6 +141,11 @@ module.exports = (function() {
             found.label_xref++;
             found.label = label;
             instr.pseudo = Base.instructions.goto('label_' + label);
+            /*
+            if (instr.cond) {
+                _set_inline_if(instr, instr.scope.level + 1);
+            }
+            */
             return true;
         }
         return false;
@@ -170,6 +174,12 @@ module.exports = (function() {
         for (var j = index + 1; j < instructions.length; j++) {
             var shift = instructions[j];
             if (instr.scope.uid != shift.scope.uid) {
+                for (; j < instructions.length; j++) {
+                    shift = instructions[j];
+                    if (instr.scope.uid == shift.scope.uid) {
+                        shift.scope = new Scope(level);
+                    }
+                }
                 break;
             }
             shift.scope = scope;
@@ -184,7 +194,10 @@ module.exports = (function() {
         if (!instr.cond) {
             // this is tricky.. to fix this on if { block } else { block }
             // it requires to rewrite the analysis loops..
-            _set_label(instructions, index, false);
+            instr = instructions[index + 1];
+            if (instr && !instr.scope.header || !instr.scope.header.isElse()) {
+                _set_label(instructions, index, false);
+            }
             return false;
         }
 
@@ -211,19 +224,19 @@ module.exports = (function() {
                 instr.scope = scope;
                 elseinst = null;
             }
-            if (instr.jump && context.limits.isInside(instr.jump) && !bounds.isInside(instr.jump)) {
+            if (instr.jump && instr.jump.gt(instr.loc) && context.limits.isInside(instr.jump) && !bounds.isInside(instr.jump)) {
                 elseinst = instr;
                 end = instr.jump;
                 bounds = new AddressBounds(instr.loc, instr.jump)
                 scope.trailer = ControlFlow.endBrace();
                 scope = new Scope();
                 scope.level = old_level + 1;
-                scope.header = new ControlFlow('else', true);
+                scope.header = new ControlFlow(instr.cond ? 'else if' : 'else', true, instr.cond ? cond : null);
                 scope.trailer = ControlFlow.endBrace();
                 _remove_label(instructions, i);
             }
         }
-        if (elseinst && elseinst.jump.gt(elseinst.loc)) {
+        if (elseinst && elseinst.jump && elseinst.jump.gt(elseinst.loc)) {
             _set_label(instructions, instructions.indexOf(elseinst));
             elseinst = null;
         }
@@ -246,12 +259,10 @@ module.exports = (function() {
         var cond = null;
         var start = instructions.indexOf(instr);
         var jmp_while = instructions[start - 1];
-        var is_while = (jmp_while && bounds.isInside(jmp_while.jump));
+        var is_while = (jmp_while && !jmp_while.cond && bounds.isInside(jmp_while.jump));
         if (is_while) {
-            cond = first.cond ? Branch.generate(first.cond.a, first.cond.b, first.cond.type, Branch.FLOW_INVERTED, Base) : Branch.false(Base)
-            if (!jmp_while.cond) {
-                _remove_label(instructions, start - 1);
-            }
+            cond = first.cond ? Branch.generate(first.cond.a, first.cond.b, first.cond.type, Branch.FLOW_INVERTED, Base) : Branch.false(Base);
+            _remove_label(instructions, start - 1);
         } else {
             cond = first.cond ? Branch.generate(first.cond.a, first.cond.b, first.cond.type, Branch.FLOW_DEFAULT, Base) : Branch.true(Base);
         }
@@ -280,18 +291,34 @@ module.exports = (function() {
                 instr.scope.level++;
             }
             if (instr.jump && instr.jump.gt(instr.loc) && !bounds.isInside(instr.jump)) {
-                if (_set_label(instructions, i, !context.limits.isInside(instr.jump))) {
+                var label = _set_label(instructions, i, !context.limits.isInside(instr.jump));
+                if (label) {
                     if (instr.cond && instr.scope.header && instr.scope.header.name == 'if') {
                         instr.scope.header.condition = Branch.generate(instr.cond.a, instr.cond.b, instr.cond.type, Branch.FLOW_INVERTED, Base);
                     }
                     _shift_any_instruction_after_goto(instructions, i, scope.level - 1);
                 }
+                if ((index + 1) == instructions.indexOf(Utils.search(instr.jump, instructions, _compare_loc))) {
+                    if (label) {
+                        _remove_label(instructions, i);
+                    }
+                    instr.pseudo = Base.instructions.break();
+                }
             } else if (instr.jump && instr.jump.lt(instr.loc) && !bounds.isInside(instr.jump)) {
                 if (instr.cond) {
                     _set_inline_if(instr, scope.level + 1)
                 }
-                _set_label(instructions, i, !context.limits.isInside(instr.jump))
+                _set_label(instructions, i, !context.limits.isInside(instr.jump));
             }
+            /*
+            else if(instr.jump && instr.jump.gt(instr.loc) && bounds.isInside(instr.jump) && instr.scope.header) {
+                var jmppos = instructions.indexOf(Utils.search(instr.jump, instructions, _compare_loc));
+                if (jmppos != (i + 1) && (index == jmppos || (index - 1) == jmppos)) {
+                    // might be a cmp at index-1
+                    instr.pseudo = Base.instructions.continue();
+                }
+            }
+            */
         }
         scope.trailer = is_while ? ControlFlow.endBrace() : new ControlFlow('while', false, cond);
         return true;
