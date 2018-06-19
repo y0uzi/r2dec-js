@@ -39,26 +39,60 @@ Duktape.errCreate = function(err) {
 };
 
 var libdec = require('libdec/libdec');
+var Long = require('libdec/long');
 var padding = '            ';
 var usages = {
-    "--help": "this help message",
-    "--colors": "enables syntax colors",
-    "--assembly": "shows pseudo next to the assembly",
-    "--casts": "shows all casts in the pseudo code",
-    "--issue": "generates the json used for the test suite",
-    "--debug": "do not catch exceptions",
-    "--html": "outputs html data instead of text",
+    "--help": {
+        desc: "this help message",
+        args: 0
+    },
+    "--colors": {
+        desc: "enables syntax colors",
+        args: 0
+    },
+    "--assembly": {
+        desc: "shows pseudo next to the assembly",
+        args: 0
+    },
+    "--casts": {
+        desc: "shows all casts in the pseudo code",
+        args: 0
+    },
+    "--issue": {
+        desc: "generates the json used for the test suite",
+        args: 0
+    },
+    "--debug": {
+        desc: "do not catch exceptions",
+        args: 0
+    },
+    "--html": {
+        desc: "outputs html data instead of text",
+        args: 0
+    },
+    "--address": {
+        desc: "outputs the decompiled code of the given address",
+        args: 1
+    }
 }
 
 function has_option(args, name) {
     return (args.indexOf(name) >= 0);
 }
 
+function get_option(args, name) {
+    var i = args.indexOf(name);
+    return (i >= 0) ? args[i + 1] : null;
+}
+
 function has_invalid_args(args) {
     for (var i = 0; i < args.length; i++) {
-        if (args[i] != '' && !usages[args[i]]) {
+        var o = usages[args[i]];
+        if (args[i] != '' && !o) {
             console.log('Invalid argument \'' + args[i] + '\'\n');
             return true;
+        } else if (o) {
+            i += o.args;
         }
     }
     return false;
@@ -68,7 +102,7 @@ function usage() {
     console.log("r2dec [options]");
     for (var key in usages) {
         var cmd = key + padding.substr(key.length, padding.length);
-        console.log("       " + cmd + " | " + usages[key]);
+        console.log("       " + cmd + " | " + usages[key].desc);
     }
 }
 
@@ -78,14 +112,15 @@ function r2cmdj(m, empty) {
 }
 
 function r2dec_main(args) {
-    if (has_invalid_args(args)) {
-        args.push('--help');
-    }
-    if (has_option(args, '--help')) {
-        usage();
-        return;
-    }
     try {
+        if (has_invalid_args(args)) {
+            args.push('--help');
+        }
+        if (has_option(args, '--help')) {
+            usage();
+            return;
+        }
+
         var arch = r2cmd('e asm.arch').trim();
         var bits = r2cmd('e asm.bits').trim();
         var honorpseudo = r2cmd('e asm.pseudo').trim() == 'true';
@@ -93,6 +128,7 @@ function r2dec_main(args) {
         var honorasm = r2cmd('e r2dec.asm').trim() == 'true';
         var honorhtml = r2cmd('e scr.html').trim() == 'true';
         var honorcolor = parseInt(r2cmd('e scr.color').trim()) > 0;
+        var address = get_option(args, '--address');
 
         // r2dec options
         var options = {
@@ -132,11 +168,19 @@ function r2dec_main(args) {
                 var strings = r2cmdj('izj', []);
                 var data = r2cmdj('agj', []);
                 if (data && data.length > 0) {
+                    if (address) {
+                        address = address.trim();
+                        address = Long.fromString(address, true, address.indexOf('0x') == 0 ? 16 : null);
+                    }
                     var routine = libdec.analyzer.make(data);
                     libdec.analyzer.strings(routine, strings);
                     libdec.analyzer.analyze(routine, architecture);
-                    libdec.analyzer.xrefs(routine, xrefs);
-                    routine.print(console.log, options);
+                    if (address) {
+                        routine.printAddress(address, console.log, options);
+                    } else {
+                        libdec.analyzer.xrefs(routine, xrefs);
+                        routine.print(console.log, options);
+                    }
                 } else {
                     console.log('Error: no data available.\nPlease analyze the function/binary first.');
                 }

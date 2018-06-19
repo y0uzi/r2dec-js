@@ -96,9 +96,26 @@ module.exports = (function() {
         this.args = [];
         this.returnType = 'void';
         this.name = name;
-
+        this.printAddress = function(address, p, options) {
+            var paddingsize = options.assembly ? _max_pad(instructions, this.name.trim()) : 0;
+            var line = new Printable();
+            var found = false;
+            for (var i = 0; i < this.instructions.length; i++) {
+                var instr = this.instructions[i];
+                if (instr.loc.eq(address)) {
+                    instr.printable(line, paddingsize, '', options);
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                line.print(p, options);
+            } else {
+                console.log('Cannot find address ' + address.toString(16));
+            }
+        };
         this.print = function(p, options) {
-            var current  = new Scope();
+            var current = new Scope();
             var scopes = [current];
             var ident = cfg.ident;
             var paddingsize = options.assembly ? _max_pad(instructions, this.name.trim()) : 0;
