@@ -47,8 +47,6 @@
         string: /("[^"]+")/
     };
 
-
-
     var _apply_regex = function(input, type, regex) {
         var x = input.split(regex);
         var p = input.match(regex);
@@ -127,6 +125,33 @@
         return l.join('');
     }
 
+    var uLineNumber = function(num) {
+        this.num = num;
+        this.toString = function(options) {
+            if (this.num < 0) {
+                return '';
+            }
+            var line = this.num;
+            if (line < 10) {
+                line = '  ' + line;
+            } else if (line < 100) {
+                line = ' ' + line;
+            }
+            line += '  ';
+            if (options.html) {
+                return _htmlize(line.replace(/\s/g, '&nbsp;'));
+            }
+            return line;
+        };
+    };
+    var uEndln = function() {
+        this.toString = function(options) {
+            if (options.html) {
+                return _htmlize('\n');
+            }
+            return '\n';
+        };
+    };
     var uString = function(text) {
         this.text = text;
         this.toString = function(options) {
@@ -212,6 +237,9 @@
             }
             this.data = this.data.concat(x.data);
         };
+        this.appendLineNumber = function(x) {
+            this.data.push(new uLineNumber(x));
+        };
         this.appendSpace = function(size) {
             this.data.push(new uSpace(size));
         };
@@ -229,7 +257,7 @@
         };
         this.appendEndline = function() {
             //console.log((new Error('l')).stack)
-            this.data.push(new uString('\n'));
+            this.data.push(new uEndln());
         };
         this.appendPipe = function() {
             this.data.push(new uString(' | '));

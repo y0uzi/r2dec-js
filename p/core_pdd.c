@@ -211,6 +211,7 @@ int r_cmd_pdd_init(void *user, const char *cmd) {
 	RCore *core = (RCore *) rcmd->data;
 	RConfig *cfg = core->config;
 	r_config_lock (cfg, false);
+	SETPREF("r2dec.linenum", "false", "if true, shows all lines in the pseudo code.");
 	SETPREF("r2dec.casts", "false", "if true, hides all casts in the pseudo code.");
 	SETPREF("r2dec.asm", "false", "if true, shows pseudo next to the assembly.");
 	SETPREF("r2dec.theme", "default", "defines the color theme to be used on r2dec.");

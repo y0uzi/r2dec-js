@@ -70,8 +70,12 @@ var usages = {
         desc: "outputs html data instead of text",
         args: 0
     },
-    "--address": {
-        desc: "outputs the decompiled code of the given address",
+    "--linenum": {
+        desc: "shows line number next to pseudo code",
+        args: 0
+    },
+    "--lineaddr": {
+        desc: "returns the address of a decompiled line.",
         args: 1
     }
 }
@@ -126,9 +130,10 @@ function r2dec_main(args) {
         var honorpseudo = r2cmd('e asm.pseudo').trim() == 'true';
         var honorcast = r2cmd('e r2dec.casts').trim() == 'true';
         var honorasm = r2cmd('e r2dec.asm').trim() == 'true';
+        var honorln = r2cmd('e r2dec.linenum').trim() == 'true';
         var honorhtml = r2cmd('e scr.html').trim() == 'true';
         var honorcolor = parseInt(r2cmd('e scr.color').trim()) > 0;
-        var address = get_option(args, '--address');
+        var lineaddr = get_option(args, '--lineaddr');
 
         // r2dec options
         var options = {
@@ -137,6 +142,7 @@ function r2dec_main(args) {
             casts: (honorcast || has_option(args, '--casts')),
             assembly: (honorasm || has_option(args, '--assembly')),
             html: (honorhtml || has_option(args, '--html')),
+            line: (honorln || has_option(args, '--linenum') ? 0 : -1),
             ident: null
         };
 
@@ -168,15 +174,20 @@ function r2dec_main(args) {
                 var strings = r2cmdj('izj', []);
                 var data = r2cmdj('agj', []);
                 if (data && data.length > 0) {
-                    if (address) {
-                        address = address.trim();
-                        address = Long.fromString(address, true, address.indexOf('0x') == 0 ? 16 : null);
+                    if (lineaddr) {
+                        lineaddr = lineaddr.trim();
+                        lineaddr = parseInt(lineaddr);
                     }
                     var routine = libdec.analyzer.make(data);
                     libdec.analyzer.strings(routine, strings);
                     libdec.analyzer.analyze(routine, architecture);
-                    if (address) {
-                        routine.printAddress(address, console.log, options);
+                    if (lineaddr) {
+                        var address = routine.findLine(lineaddr);
+                        if (address) {
+                            console.log('0x' + address.toString(16))
+                        } else {
+                            console.log('Cannot find address for line ' + lineaddr);
+                        }
                     } else {
                         libdec.analyzer.xrefs(routine, xrefs);
                         routine.print(console.log, options);

@@ -32,22 +32,24 @@ module.exports = (function() {
         this.trailer = null;
         this.level = lvl || 0;
         this.uid = uniq_counter++;
-        this.printableHeader = function(printable, spacesize, ident) {
+        this.printableHeader = function(printable, spacesize, ident, line) {
             if (this.header) {
                 printable.appendSpacedPipe(spacesize);
                 printable.append(ident);
                 printable.appendPrintable(this.header.printable(spacesize));
                 // printable.appendComment(this.toString()); // debug only
                 printable.appendEndline();
+                printable.appendLineNumber(line);
             }
         };
-        this.printableTrailer = function(printable, spacesize, ident) {
+        this.printableTrailer = function(printable, spacesize, ident, line) {
             if (this.trailer) {
                 printable.appendSpacedPipe(spacesize);
                 printable.append(ident);
                 printable.appendPrintable(this.trailer.printable(spacesize));
                 // printable.appendComment(this.toString()); // debug only
                 printable.appendEndline();
+                printable.appendLineNumber(line);
             }
         };
         this.printHeader = function(printable, ident, options) {

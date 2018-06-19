@@ -47,10 +47,12 @@ module.exports = (function() {
         }
         var printable = new Printable();
         if (macros.length > 0) {
+            printable.appendLineNumber(options.line);
             for (var i = 0; i < macros.length; i++) {
                 printable.appendSpacedPipe(spacesize);
                 printable.appendMacro(macros[i]);
                 printable.appendEndline();
+                printable.appendLineNumber(options.line);
             }
             printable.appendSpacedPipe(spacesize);
         }
@@ -59,6 +61,7 @@ module.exports = (function() {
         for (var i = 0; i < codes.length; i++) {
             if (i > 0) {
                 printable.appendEndline();
+                printable.appendLineNumber(options.line);
             }
             printable.appendPrintable(codes[i].printable(spacesize));
         }
@@ -96,23 +99,11 @@ module.exports = (function() {
         this.args = [];
         this.returnType = 'void';
         this.name = name;
-        this.printAddress = function(address, p, options) {
-            var paddingsize = options.assembly ? _max_pad(instructions, this.name.trim()) : 0;
-            var line = new Printable();
-            var found = false;
-            for (var i = 0; i < this.instructions.length; i++) {
-                var instr = this.instructions[i];
-                if (instr.loc.eq(address)) {
-                    instr.printable(line, paddingsize, '', options);
-                    found = true;
-                    break;
-                }
+        this.findLine = function(linenum) {
+            if (this.instructions[linenum]) {
+                return this.instructions[linenum].loc;
             }
-            if (found) {
-                line.print(p, options);
-            } else {
-                console.log('Cannot find address ' + address.toString(16));
-            }
+            return null;
         };
         this.print = function(p, options) {
             var current = new Scope();
@@ -120,6 +111,7 @@ module.exports = (function() {
             var ident = cfg.ident;
             var paddingsize = options.assembly ? _max_pad(instructions, this.name.trim()) : 0;
             var line = new Printable();
+            line.appendLineNumber(options.line);
             if (options.assembly) {
                 var legenda2 = '    ; assembly';
                 var legenda1 = '/* r2dec pseudo C output */'
@@ -128,6 +120,7 @@ module.exports = (function() {
                 line.appendComment(legenda1);
                 line.print(p, options);
                 line.clean();
+                line.appendLineNumber(options.line);
             }
             _print_deps(p, this.instructions, options, paddingsize);
             if (options.assembly) {
@@ -144,11 +137,12 @@ module.exports = (function() {
             line.print(p, options);
             for (var i = 0; i < this.instructions.length; i++) {
                 line.clean();
+                line.appendLineNumber(options.line);
                 var instr = this.instructions[i];
                 if (current != instr.scope) {
                     if (current.level < instr.scope.level) {
                         scopes.push(current);
-                        instr.scope.printableHeader(line, paddingsize, ident);
+                        instr.scope.printableHeader(line, paddingsize, ident, options.line);
                         ident += cfg.ident;
                         current = instr.scope;
                     } else if (current.level > instr.scope.level) {
@@ -156,14 +150,14 @@ module.exports = (function() {
                             if (ident.length > cfg.ident.length) {
                                 ident = ident.substr(0, ident.length - cfg.ident.length);
                             }
-                            current.printableTrailer(line, paddingsize, ident);
+                            current.printableTrailer(line, paddingsize, ident, options.line);
                             current = scopes.pop();
                         }
                     } else {
                         var tmpident = ident.substr(0, ident.length - cfg.ident.length);
-                        current.printableTrailer(line, paddingsize, tmpident);
+                        current.printableTrailer(line, paddingsize, tmpident, options.line);
                         current = instr.scope;
-                        instr.scope.printableHeader(line, paddingsize, tmpident);
+                        instr.scope.printableHeader(line, paddingsize, tmpident, options.line);
                     }
                 }
                 if (instr.label > -1) {
@@ -171,16 +165,21 @@ module.exports = (function() {
                     line.appendLabels('label_' + instr.label);
                     line.append(':');
                     line.appendEndline();
+                    line.appendLineNumber(options.line);
                 }
                 instr.printable(line, paddingsize, ident, options);
                 line.print(p, options);
+                if (options.line > -1 && (i + 1) < this.instructions.length) {
+                    options.line++;
+                }
             }
             line.clean();
+            line.appendLineNumber(options.line);
             while (ident.length > 1 && current) {
                 if (ident.length > cfg.ident.length) {
                     ident = ident.substr(0, ident.length - cfg.ident.length);
                 }
-                current.printableTrailer(line, paddingsize, ident);
+                current.printableTrailer(line, paddingsize, ident, options.line);
                 current = scopes.pop();
             }
             line.appendSpacedPipe(paddingsize);

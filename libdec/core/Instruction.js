@@ -53,18 +53,22 @@ module.exports = (function() {
                     p.appendSpacedPipe(spacesize);
                     p.appendComment(ident + '/* ' + this.comments[0] + ' */');
                     p.appendEndline();
+                    p.appendLineNumber(options.line);
                 } else {
                     p.appendSpacedPipe(spacesize);
                     p.appendComment(ident + '/*');
                     p.appendEndline();
+                    p.appendLineNumber(options.line);
                     for (var j = 0; j < this.comments.length; j++) {
                         p.appendSpacedPipe(spacesize);
                         p.appendComment(ident + ' * ' + this.comments[j]);
                         p.appendEndline();
+                        p.appendLineNumber(options.line);
                     }
                     p.appendSpacedPipe(spacesize);
                     p.appendComment(ident + ' */');
                     p.appendEndline();
+                    p.appendLineNumber(options.line);
                 }
             }
             if (options.assembly) {
