@@ -648,8 +648,9 @@ module.exports = (function() {
                 return a == '{#}' ? mem : a;
             });
         },
-        context: function() {
+        context: function(arch_bits) {
             return {
+                bits: arch_bits,
                 cond: {
                     a: null,
                     b: null,

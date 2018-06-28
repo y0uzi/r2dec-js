@@ -713,7 +713,7 @@ module.exports = (function() {
         return start;
     };
 
-    var _is_jumping_outside = function(instructions, instr){
+    var _is_jumping_outside = function(instructions, instr) {
         return instr.jump.lt(instructions[0].loc) || instr.jump.gt(instr.loc);
     };
 
@@ -1755,8 +1755,9 @@ module.exports = (function() {
             }
             return asm.replace(/,/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
         },
-        context: function() {
+        context: function(arch_bits) {
             return {
+                bits: arch_bits,
                 cond: {
                     cr0: {
                         a: null,

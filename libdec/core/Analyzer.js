@@ -111,8 +111,8 @@ module.exports = (function() {
             var strings = new Strings(izj);
             _resolve_strings(strings, instructions, this.options);
         };
-        this.analyze = function(routine, arch) {
-            var context = arch.context();
+        this.analyze = function(routine, arch, arch_bits) {
+            var context = arch.context(arch_bits);
             _analyze_instructions(routine.instructions, arch, context, this.options);
             _analyze_flows(routine.instructions, arch, context, this.options)
             routine.returnType = arch.returns(context);

@@ -343,8 +343,9 @@ module.exports = (function() {
                 return x;
             });
         },
-        context: function() {
+        context: function(arch_bits) {
             return {
+                bits: arch_bits,
                 cond: {
                     a: null,
                     b: null
