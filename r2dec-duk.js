@@ -94,6 +94,7 @@ function r2dec_main(args) {
                 libdec.core.analysis.pre(p, architecture, arch_context);
                 libdec.core.decompile(p, architecture, arch_context);
                 libdec.core.analysis.post(p, architecture, arch_context);
+                p = null;
                 libdec.core.print(p);
             } else {
                 console.log('Error: no data available.\nPlease analyze the function/binary first.');

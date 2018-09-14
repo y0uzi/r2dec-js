@@ -9,13 +9,15 @@ var require = function(x) {
         var module = {
             exports: null
         };
-        eval(___internal_require(x));
+        console.log(12);
+        console.log(___internal_require(x))
+        console.log(34);
         arguments.callee.loaded[x] = module.exports;
         return module.exports;
     } catch (ee) {
         console.log('Exception from ' + x);
         console.log(ee.stack);
-        
     }
 };
 require.loaded = {};
+console.log(require('libdec/warning'))

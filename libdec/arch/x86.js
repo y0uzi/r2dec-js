@@ -830,7 +830,7 @@ module.exports = (function() {
 
         if (loop) {
             instr.conditional(counter, '0', 'NE');
-            instr.jump = instr.location;
+            instr.jump = instr.location.add(0);
         }
 
         var dst = reciept[0];

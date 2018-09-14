@@ -15,6 +15,10 @@ mv core_test.so ~/.config/radare2/plugins
 #include <duktape.h>
 #include <duk_console.h>
 
+
+#define duk_compile_string_filename2(ctx,flags,src)  \
+	(duk_compile_raw((ctx), (src), 0, 1 /*args*/ | (flags) | DUK_COMPILE_NOSOURCE | DUK_COMPILE_STRLEN))
+
 #undef R_API
 #define R_API static
 #undef R_IPI
@@ -37,10 +41,32 @@ typedef struct {
 static RCore *core_link = 0;
 static e_r2dec_t config = {0};
 
+static void dump_stack(duk_context *ctx) {
+	int i;
+	long top = duk_get_top(ctx);
+
+	printf("top:  %ld\n", top);
+	for (i = 0; i <= top; i++) {
+	    printf("[%2d]: %s\n", i - top, duk_safe_to_string(ctx, i - top));
+	}
+}
+
+static duk_int_t r2dec_eval_js(duk_context *ctx, const char *path, const char *toeval) {
+	duk_int_t rc;
+	duk_push_string (ctx, path);
+	rc = duk_compile_raw (ctx, toeval, 0, 0 | DUK_COMPILE_SAFE | DUK_COMPILE_NOSOURCE | DUK_COMPILE_STRLEN);
+	//duk_push_global_object (ctx);
+	if (rc) {
+		return DUK_RET_EVAL_ERROR;
+	}
+	return duk_pcall(ctx, 0) ? DUK_RET_EVAL_ERROR : 0;
+}
+
 static char* r2dec_read_file(const char* file) {
 	if (!file) {
 		return 0;
 	}
+	eprintf("load: %s\n", file);
 	char *r2dec_home;
 	char *env = r_sys_getenv ("R2DEC_HOME");
 	if (env) {
@@ -96,8 +122,9 @@ static duk_ret_t duk_internal_require(duk_context *ctx) {
 		snprintf (fullname, sizeof(fullname), "%s.js", duk_safe_to_string (ctx, 0));
 		char* text = r2dec_read_file (fullname);
 		if (text) {
-			duk_push_string (ctx, text);
+			duk_ret_t r = r2dec_eval_js (ctx, fullname, text);
 			free (text);
+			return r;
 		} else {
 			printf("Error: '%s' not found.\n", fullname);
 			return DUK_RET_TYPE_ERROR;
@@ -119,12 +146,15 @@ static void duk_r2_init(duk_context* ctx) {
 static void duk_eval_file(duk_context* ctx, const char* file) {
 	char* text = r2dec_read_file (file);
 	if (text) {
-		duk_eval_string_noresult (ctx, text);
+		r2dec_eval_js (ctx, text, file);
+		duk_pop (ctx);
+		dump_stack (ctx);
 		free (text);
 	}
 }
 
 static void r2dec_fatal_function (void *udata, const char *msg) {
+	(void) udata;
     fprintf (stderr, "*** FATAL ERROR: %s\n", (msg ? msg : "no message"));
     fflush (stderr);
     abort ();
@@ -137,12 +167,14 @@ static void duk_r2dec(RCore *core, const char *input) {
 	duk_console_init (ctx, 0);
 //	Long_init (ctx);
 	duk_r2_init (ctx);
+	printf("final top: %ld\n", (long) duk_get_top(ctx));
 	duk_eval_file (ctx, "require.js");
-	duk_eval_file (ctx, "r2dec-duk.js");
+	printf("final top: %ld\n", (long) duk_get_top(ctx));
+	//duk_eval_file (ctx, "r2dec-duk.js");
 	if (*input) {
 		snprintf (args, sizeof(args), "if(typeof r2dec_main == 'function'){r2dec_main(\"%s\".split(/\\s+/));}else{console.log('Fatal error. Cannot use R2_HOME_DATADIR.');}", input);
 	} else {
-		snprintf (args, sizeof(args), "if(typeof r2dec_main == 'function'){r2dec_main([]);}else{console.log('Fatal error. Cannot use R2_HOME_DATADIR.');}");
+		snprintf (args, sizeof(args), "if(typeof r2dec_main == 'function'){r2dec_main([]);}else{console.log('main is missing: Cannot use R2_HOME_DATADIR.');}");
 	}
 	duk_eval_string_noresult (ctx, args);
 	duk_destroy_heap (ctx);

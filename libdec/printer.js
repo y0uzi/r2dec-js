@@ -15,7 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-module.exports = (function() {
+module.exports = 111;
+/*
+(function() {
     //const _autoregex = /(\bif\b|\belse\b|\bwhile\b|\bfor\b|\bdo\b|\breturn\b|[ui]+nt[123468]+\_t|\bvoid\b|\bconst\b|\bsizeof\b|\bfloat\b|\bdouble\b|0x[0-9A-Fa-f]+|\b\d+\b)/g
 
     const _autotheme = {
@@ -93,19 +95,19 @@ module.exports = (function() {
         if (!input || input.length < 1) {
             return '';
         }
-        /* control flow (if, else, while, do, etc..) */
+        // control flow (if, else, while, do, etc..)
         var x = input.split(_autotheme.controlflow);
         if (x.length > 1) {
             input = _apply_regex(input, 'flow', _autotheme.controlflow);
         }
-        /* numbers */
+        // numbers
         x = input.split(_autotheme.numbers);
         if (x.length == 1 && x == '') {
             input = _theme_colors.integers(input);
         } else if (x.length > 1) {
             input = _apply_regex(input, 'integers', _autotheme.numbers);
         }
-        /* uint32_t, etc.. */
+        // uint32_t, etc..
         x = input.split(_autotheme.definebits);
         if (x.length == 1 && x == '') {
             input = _theme_colors.types(input);
@@ -150,3 +152,4 @@ module.exports = (function() {
         this.html = _htmlize;
     };
 })();
+*/

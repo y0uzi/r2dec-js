@@ -52,10 +52,11 @@ static char* r2dec_read_file(const char* file) {
 static duk_ret_t duk_internal_require(duk_context *ctx) {
 	char fullname[256];
 	if (duk_is_string (ctx, 0)) {
-		snprintf (fullname, sizeof(fullname), "%s.js", duk_safe_to_string (ctx, 0));
+		const char* name = duk_safe_to_string (ctx, 0);
+		snprintf (fullname, sizeof(fullname), "%s.js", name);
 		char* text = r2dec_read_file (fullname);
 		if (text) {
-			duk_push_string (ctx, text);
+			duk_eval_string_noresult_filename (ctx, text, name);
 			free (text);
 		} else {
 			printf ("error: '%s' not found.\n", fullname);
@@ -88,7 +89,7 @@ static void duk_r2_init(duk_context* ctx) {
 	duk_put_global_string (ctx, "___internal_require");
 	duk_push_c_function (ctx, duk_internal_read_file, 1);
 	duk_put_global_string (ctx, "read_file");
-	duk_eval_string_noresult (ctx, "require = function(x){try{var module={exports:null};eval(___internal_require(x));return module.exports;}catch(ee){console.log(ee.stack);}}");
+	duk_eval_string_noresult (ctx, "require = function(x){try{var module={exports:null};___internal_require(x);return module.exports;}catch(ee){console.log(ee.stack);}}");
 }
 
 static int duk_eval_file(duk_context* ctx, const char* file) {
